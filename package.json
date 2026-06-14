@@ -1,6 +1,6 @@
 {
   "name": "axmem",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "private": false,
   "description": "Local-first compressed memory packs and deterministic recall for heterogeneous AI agents.",
   "license": "MIT",
@@ -26,8 +26,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/agent-memory-*.test.js\"",
     "install:codex-skill": "powershell -ExecutionPolicy Bypass -File scripts/install_codex_skill.ps1",
-    "verify:agent-assets": "powershell -ExecutionPolicy Bypass -File scripts/verify_agent_assets.ps1",
-    "prepare": "npm run build"
+    "verify:agent-assets": "powershell -ExecutionPolicy Bypass -File scripts/verify_agent_assets.ps1"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",

@@ -1,0 +1,242 @@
+#!/usr/bin/env node
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs = __importStar(require("node:fs"));
+const path = __importStar(require("node:path"));
+const node_child_process_1 = require("node:child_process");
+const memory_1 = require("./memory");
+const VERSION = "0.1.0-beta.0";
+main(process.argv.slice(2));
+function main(rawArgs) {
+    try {
+        const args = rawArgs[0] === "memory" ? rawArgs.slice(1) : rawArgs;
+        if (args.includes("--help") || args[0] === "help")
+            return printHelp();
+        if (args.includes("--version") || args[0] === "version")
+            return console.log(`axmem ${VERSION}`);
+        (0, memory_1.setAxmemStorageLayout)(parseLayout(opt(args, "--layout")), process.cwd());
+        const cmd = pos(args)[0] ?? "list";
+        const json = args.includes("--json");
+        const memoryHome = opt(args, "--memory-home");
+        const projectId = opt(args, "--project") ?? opt(args, "--project-id");
+        if (cmd === "migrate")
+            return out(migrateFromAxiom(process.cwd(), args.includes("--force")), json, renderMigration);
+        if (cmd === "capture")
+            return out((0, memory_1.captureMemoryPack)({ cwd: process.cwd(), taskId: req(opt(args, "--task"), "task"), title: req(opt(args, "--title"), "title"), tags: opts(args, "--tag"), invalidatedHypotheses: opts(args, "--invalidated").map((hypothesis) => ({ hypothesis, reason: opt(args, "--reason"), next_better_hypothesis: opt(args, "--next-hypothesis"), invalidated_by: ["capture_option"], source: "capture_option" })), resumeCommand: opt(args, "--resume-command") }), json, memory_1.renderMemoryCapture);
+        if (cmd === "ingest") {
+            const doc = args.includes("--quick") ? quickDoc(args) : docFromArgs(args);
+            const taskId = opt(args, "--task") ?? doc.task?.id ?? doc.task_id ?? (args.includes("--quick") ? quickId(opt(args, "--title"), req(opt(args, "--summary"), "summary")) : undefined);
+            if (!taskId)
+                throw new Error("ingest requires --task or task.id; use --quick --summary for auto id");
+            return out((0, memory_1.ingestMemoryPack)({ cwd: process.cwd(), document: doc, taskId, title: opt(args, "--title"), tags: opts(args, "--tag") }), json, memory_1.renderMemoryIngest);
+        }
+        if (cmd === "handoff") {
+            const summary = req(opt(args, "--summary"), "summary");
+            const title = opt(args, "--title") ?? "AXMEM handoff";
+            const doc = { summary: { goal: title, recent_message: summary, resume_prompt: summary, resume_command: opt(args, "--resume-command") }, decisions: opts(args, "--decision"), next_actions: opts(args, "--next-action"), semantic_refs: opts(args, "--semantic-ref").map(ref), evidence: [{ kind: "agent_note", summary, data: { source: "axmem handoff", created_by: "cli" } }] };
+            return out((0, memory_1.ingestMemoryPack)({ cwd: process.cwd(), document: doc, taskId: opt(args, "--task") ?? `handoff-${new Date().toISOString().slice(0, 10)}`, title, tags: uniq(["handoff", ...opts(args, "--tag")]) }), json, memory_1.renderMemoryIngest);
+        }
+        if (cmd === "update") {
+            const invalidated = opts(args, "--invalidate").map((hypothesis) => ({ hypothesis, reason: opt(args, "--because") ?? opt(args, "--reason"), next_better_hypothesis: opt(args, "--next-hypothesis"), invalidated_by: ["memory_update"], source: "agent_ingest" }));
+            return out((0, memory_1.updateMemoryPack)({ cwd: process.cwd(), taskId: req(opt(args, "--task"), "task"), title: opt(args, "--title"), summary: opt(args, "--summary"), appendDecisions: opts(args, "--append-decision"), appendNextActions: opts(args, "--append-next-action"), semanticRefs: opts(args, "--semantic-ref").map(ref), tags: opts(args, "--tag"), invalidatedHypotheses: invalidated, evidence: opts(args, "--evidence").map(evidence) }), json, memory_1.renderMemoryUpdate);
+        }
+        if (cmd === "guard") {
+            const r = (0, memory_1.guardMemoryHandoff)({ cwd: process.cwd(), threshold: intOpt(args, "--max-changed-lines"), sinceHours: intOpt(args, "--since-hours"), failOnWarn: args.includes("--fail") });
+            out(r, json, memory_1.renderMemoryHandoffGuard);
+            process.exitCode = r.status === "fail" ? 1 : 0;
+            return;
+        }
+        if (cmd === "reindex")
+            return out((0, memory_1.reindexMemory)({ cwd: process.cwd(), reason: "manual" }), json, memory_1.renderMemoryReindex);
+        if (cmd === "delete") {
+            const r = (0, memory_1.deleteMemory)({ cwd: process.cwd(), taskIds: uniq([...opts(args, "--task"), ...pos(args).slice(1)]), dryRun: args.includes("--dry-run") });
+            out(r, json, memory_1.renderMemoryDelete);
+            process.exitCode = r.status === "not_found" ? 1 : 0;
+            return;
+        }
+        if (cmd === "list")
+            return args.includes("--global") ? out((0, memory_1.readGlobalMemoryRegistry)(memoryHome), json, memory_1.renderMemoryProjects) : out((0, memory_1.readMemoryIndex)(process.cwd()), json, memory_1.renderMemoryIndex);
+        if (cmd === "projects")
+            return out((0, memory_1.readGlobalMemoryRegistry)(memoryHome), json, memory_1.renderMemoryProjects);
+        if (cmd === "publish")
+            return out((0, memory_1.publishMemoryProject)({ cwd: process.cwd(), memoryHome, projectId, title: opt(args, "--title"), visibility: visibility(opt(args, "--visibility")), agentScope: opt(args, "--agent"), domainTags: opts(args, "--tag") }), json, memory_1.renderMemoryProjectPublish);
+        if (cmd === "attach")
+            return out((0, memory_1.attachMemoryProject)({ memoryHome, workspacePath: path.resolve(req(opt(args, "--path"), "path")), projectId, title: opt(args, "--title"), visibility: visibility(opt(args, "--visibility")), agentScope: opt(args, "--agent"), domainTags: opts(args, "--tag") }), json, memory_1.renderMemoryProjectPublish);
+        if (cmd === "search-store") {
+            const sub = pos(args)[1] ?? "build";
+            if (sub === "build")
+                return out((0, memory_1.buildMemorySearchStore)({ cwd: process.cwd(), reason: "manual" }), json, (r) => `Built AXMEM search store\nManifest: ${r.manifest_path}\nEntries: ${r.source_entry_count}\nTokens: ${r.token_count}\nDocuments: ${r.document_count}`);
+            if (sub === "compare") {
+                const cases = [...opts(args, "--query").map((query, i) => ({ id: `query-${i + 1}`, query })), ...opts(args, "--task").map((taskId, i) => ({ id: `task-${i + 1}`, taskId }))];
+                if (!cases.length)
+                    throw new Error("search-store compare requires --query or --task");
+                return out((0, memory_1.compareMemorySearchStore)({ cwd: process.cwd(), cases }), json, (r) => [`AXMEM search-store compare: ${r.status}`, `Cases: ${r.case_count}`, ...r.cases.map((c) => `- ${c.id}: ${c.passed ? "ok" : "mismatch"} json=${c.json_top_task_id ?? "<none>"} search=${c.search_top_task_id ?? "<none>"}`)].join("\n"));
+            }
+            throw new Error("Supported search-store subcommands: build, compare");
+        }
+        if (cmd === "session") {
+            const sub = pos(args)[1] ?? "recall";
+            const a = beforeSep(args);
+            const sessionId = opt(a, "--session");
+            if (sub === "capture-run")
+                return captureRun(a, afterSep(args), sessionId);
+            if (sub === "append")
+                return out((0, memory_1.appendSessionMemory)({ cwd: process.cwd(), sessionId, kind: kind(opt(a, "--kind")), title: opt(a, "--title"), summary: opt(a, "--summary"), text: opt(a, "--text") ?? (a.includes("--stdin") ? fs.readFileSync(0, "utf8") : undefined), command: opt(a, "--command"), status: opt(a, "--status"), files: opts(a, "--file"), tags: opts(a, "--tag"), role: role(opt(a, "--role")) }), json, memory_1.renderSessionMemoryAppend);
+            if (sub === "recall") {
+                const profile = profileOf(opt(a, "--profile"), a.includes("--full"));
+                return out((0, memory_1.recallSessionMemory)({ cwd: process.cwd(), sessionId, query: opt(a, "--query"), eventId: opt(a, "--event"), limit: limit(opt(a, "--limit")), includeEvidence: profile === "full" || a.includes("--include-evidence"), profile }), json, memory_1.renderSessionMemoryRecall);
+            }
+            if (sub === "list")
+                return out((0, memory_1.listSessionMemory)({ cwd: process.cwd() }), json, memory_1.renderSessionMemoryList);
+            throw new Error("Supported session subcommands: append, capture-run, recall, list");
+        }
+        if (cmd === "window") {
+            const profileFlush = args.includes("--flush");
+            const common = { cwd: process.cwd(), sessionId: opt(args, "--session"), taskId: opt(args, "--task"), query: opt(args, "--query"), systemPrompt: opt(args, "--system-prompt"), tokenBudget: intOpt(args, "--token-budget"), recentEventLimit: intOpt(args, "--recent-events"), activeCardLimit: intOpt(args, "--active-cards"), prefetch: args.includes("--prefetch") };
+            if (profileFlush)
+                return out((0, memory_1.flushMemoryWorkingWindow)({ ...common, pendingEvents: [{ kind: kind(opt(args, "--kind")), title: opt(args, "--title"), summary: opt(args, "--summary"), text: opt(args, "--text") ?? (args.includes("--stdin") ? fs.readFileSync(0, "utf8") : undefined), command: opt(args, "--command"), status: opt(args, "--status"), files: opts(args, "--file"), tags: opts(args, "--tag"), role: role(opt(args, "--role")) }], maxPackCacheBytes: nonNegOpt(args, "--max-cache-bytes") }), json, (r) => [`AXMEM working window flush: ${r.status}`, `Appended events: ${r.appended_events.map((e) => e.event_id).join(", ") || "<none>"}`, renderWindow(r.window)].join("\n"));
+            return out((0, memory_1.buildMemoryWorkingWindow)(common), json, renderWindow);
+        }
+        if (cmd === "recall-tool") {
+            const profile = profileOf(opt(args, "--profile"), args.includes("--full"));
+            return out((0, memory_1.runAxmemRecallTool)({ cwd: process.cwd(), source: recallSource(opt(args, "--source")), sessionId: opt(args, "--session"), query: opt(args, "--query"), taskId: opt(args, "--task"), eventId: opt(args, "--event"), profile, limit: limit(opt(args, "--limit")), includeEvidence: profile === "full" || args.includes("--include-evidence") }), json, (r) => [`AXMEM recall tool: source=${r.source}; estimated ${r.estimated_tokens} tokens`, r.session ? `Session results: ${r.session.results.length}` : undefined, r.memory ? `Memory results: ${r.memory.results.length}` : undefined].filter(Boolean).join("\n"));
+        }
+        if (cmd === "recall") {
+            const taskId = opt(args, "--task");
+            const query = opt(args, "--query");
+            const file = fileOpt(opt(args, "--file"));
+            const profile = profileOf(opt(args, "--profile"), args.includes("--full"));
+            if (!taskId && !query && !file)
+                throw new Error("recall requires --task, --query, or --file");
+            const base = { taskId, query, file, limit: limit(opt(args, "--limit")), includeEvidence: profile === "full" || args.includes("--include-evidence"), includeGraph: profile === "full" || args.includes("--include-graph"), mode: mode(opt(args, "--mode"), args.includes("--invalidated-history")), profile, explainScore: args.includes("--explain-score") };
+            return args.includes("--global") || projectId ? out((0, memory_1.recallGlobalMemory)({ ...base, memoryHome, projectId }), json, memory_1.renderGlobalMemoryRecall) : out((0, memory_1.recallMemory)({ ...base, cwd: process.cwd() }), json, memory_1.renderMemoryRecall);
+        }
+        throw new Error("Supported commands: recall, ingest, handoff, update, delete, session, window, recall-tool, search-store, reindex, attach, publish, projects, list, capture, guard, migrate");
+    }
+    catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+    }
+}
+function printHelp() {
+    console.log(`axmem ${VERSION}\n\nUsage:\n  axmem recall --query \"...\" [--profile ultra|focused|full] [--json]\n  axmem ingest --quick --summary \"...\" [--task id] [--tag tag]\n  axmem handoff --summary \"...\" [--task id]\n  axmem migrate --from-axiom [--force] [--json]\n\nCommands:\n  capture ingest handoff update guard session window recall-tool search-store reindex delete list recall publish projects attach migrate\n\nCompatibility:\n  axmem memory <command> is accepted as an alias.\n  --layout auto|standalone|axiom selects .axmem or legacy .axiom stores.`);
+}
+function out(value, json, render) { console.log(json ? JSON.stringify(value, null, 2) : render(value)); }
+function migrateFromAxiom(cwd, force) { const source = path.join(cwd, ".axiom", "memory"); const target = path.join(cwd, ".axmem", "memory"); if (!fs.existsSync(source))
+    return { schema: "axmem.migration.v0", status: "skipped", source, target, copied_files: 0, skipped_files: 0 }; let copied = 0, skipped = 0; for (const f of walk(source)) {
+    const outPath = path.join(target, path.relative(source, f));
+    if (fs.existsSync(outPath) && !force) {
+        skipped++;
+        continue;
+    }
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.copyFileSync(f, outPath);
+    copied++;
+} (0, memory_1.setAxmemStorageLayout)("standalone", cwd); (0, memory_1.reindexMemory)({ cwd, reason: "manual" }); return { schema: "axmem.migration.v0", status: "ok", source, target, copied_files: copied, skipped_files: skipped }; }
+function walk(root) { return fs.readdirSync(root, { withFileTypes: true }).flatMap((e) => { const p = path.join(root, e.name); return e.isDirectory() ? walk(p) : e.isFile() ? [p] : []; }); }
+function renderMigration(r) { return [`AXMEM migration: ${r.status}`, `Source: ${r.source}`, `Target: ${r.target}`, `Copied files: ${r.copied_files}`, `Skipped files: ${r.skipped_files}`].join("\n"); }
+function renderWindow(r) { return [`AXMEM working window: ${r.estimated_tokens}/${r.token_budget} tokens${r.truncated ? " (truncated)" : ""}`, r.session_id ? `Session: ${r.session_id}` : undefined, r.pinned_task_id ? `Pinned: ${r.pinned_task_id}` : undefined, `Recent events: ${r.recent_events.length}`, `Active cards: ${r.active_cards.map((i) => i.task_id).join(", ") || "<none>"}`, `Tools: ${r.tools.map((t) => t.name).join(", ") || "<none>"}`].filter(Boolean).join("\n"); }
+function docFromArgs(args) { const file = opt(args, "--file"); const fromFile = file ? JSON.parse(fs.readFileSync(path.resolve(process.cwd(), file), "utf8")) : {}; const fromStdin = args.includes("--stdin") ? JSON.parse(fs.readFileSync(0, "utf8")) : {}; const doc = { ...fromFile, ...fromStdin }; const summary = opt(args, "--summary"); const invalidated = opts(args, "--invalidated").map((hypothesis) => ({ hypothesis, reason: opt(args, "--reason"), next_better_hypothesis: opt(args, "--next-hypothesis"), invalidated_by: ["agent_ingest"], source: "agent_ingest" })); return { ...doc, task: { ...(doc.task ?? {}), id: opt(args, "--task") ?? doc.task?.id, title: opt(args, "--title") ?? doc.task?.title, tags: uniq([...(doc.task?.tags ?? []), ...opts(args, "--tag")]) }, task_id: opt(args, "--task") ?? doc.task_id, title: opt(args, "--title") ?? doc.title, tags: uniq([...(doc.tags ?? []), ...opts(args, "--tag")]), summary: mergeSummary(doc.summary, summary), semantic_refs: [...(doc.semantic_refs ?? []), ...opts(args, "--semantic-ref").map(ref)], decisions: [...(doc.decisions ?? []), ...opts(args, "--decision")], next_actions: [...(doc.next_actions ?? []), ...opts(args, "--next-action"), ...opts(args, "--next")], invalidated_hypotheses: [...(doc.invalidated_hypotheses ?? []), ...invalidated], evidence: [...(doc.evidence ?? []), ...opts(args, "--evidence").map(evidence)] }; }
+function quickDoc(args) { const summary = req(opt(args, "--summary"), "summary"); const title = opt(args, "--title") ?? compact(summary, 80); const base = docFromArgs(args); return { ...base, task: { ...(base.task ?? {}), id: opt(args, "--task") ?? base.task?.id ?? base.task_id ?? quickId(title, summary), title, tags: uniq([...(base.task?.tags ?? []), "handoff", ...opts(args, "--tag")]) }, title, tags: uniq([...(base.tags ?? []), "handoff", ...opts(args, "--tag")]), summary: { ...(typeof base.summary === "object" && base.summary && !Array.isArray(base.summary) ? base.summary : {}), recent_message: summary, resume_prompt: summary }, evidence: [...(base.evidence ?? []), { kind: "agent_note", summary, data: { source: "axmem ingest --quick", created_by: "cli" } }] }; }
+function mergeSummary(existing, cliSummary) { if (!cliSummary)
+    return existing; if (!existing || typeof existing === "string")
+    return cliSummary; return { ...existing, recent_message: cliSummary, resume_prompt: existing.resume_prompt ?? cliSummary }; }
+function ref(value) { const m = value.match(/^([^:/]+)[:/](.+)$/); if (!m)
+    throw new Error(`--semantic-ref must use kind:name, got '${value}'`); return { kind: m[1], name: m[2] }; }
+function evidence(value) { const [kind, summary, data] = value.split("|"); if (!kind || !summary)
+    throw new Error(`--evidence must use kind|summary|data, got '${value}'`); return { kind, summary, data: data ?? summary }; }
+function quickId(title, summary) { return `${slug(title ?? summary).slice(0, 48) || "quick-memory"}-${new Date().toISOString().slice(0, 10)}-${hash(summary)}`; }
+function slug(value) { return value.trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); }
+function hash(value) { let h = 2166136261; for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+} return (h >>> 0).toString(36); }
+function compact(value, max) { const c = value.replace(/\s+/g, " ").trim(); return c.length <= max ? c : `${c.slice(0, Math.max(0, max - 3))}...`; }
+function captureRun(args, cmd, sessionId) { if (!cmd.length)
+    throw new Error("Usage: axmem session capture-run [options] -- <command> [args...]"); const cwd = path.resolve(opt(args, "--cwd") ?? process.cwd()); const max = nonNegOpt(args, "--max-output-chars") ?? 200000; const r = (0, node_child_process_1.spawnSync)(cmd[0], cmd.slice(1), { cwd, encoding: "utf8", maxBuffer: Math.max(1024 * 1024, max * 4 + 1024 * 1024), windowsHide: true }); const stdout = r.stdout ?? ""; const stderr = r.stderr ?? ""; if (stdout)
+    process.stdout.write(stdout); if (stderr)
+    process.stderr.write(stderr); const exit = typeof r.status === "number" ? r.status : (r.error || r.signal ? 1 : 0); const status = !r.error && !r.signal && r.status === 0 ? "ok" : "failed"; const line = cmd.map((p) => /^[A-Za-z0-9_./:@%+=,\\-]+$/.test(p) ? p : JSON.stringify(p)).join(" "); const text = [`command: ${line}`, `cwd: ${cwd}`, `exit_code: ${exit}`, `status: ${status}`, "", "--- stdout ---", bound(stdout, Math.floor(max / 2)), "--- stderr ---", bound(stderr, Math.ceil(max / 2))].join("\n"); (0, memory_1.appendSessionMemory)({ cwd: process.cwd(), sessionId, kind: kind(opt(args, "--kind") ?? "command_result"), title: opt(args, "--title"), summary: opt(args, "--summary") ?? compact(`Command ${status} (exit ${exit}): ${line}`, 220), text, command: line, status, files: opts(args, "--file"), tags: ["capture-run", status, ...opts(args, "--tag")], role: role(opt(args, "--role")) ?? "tool" }); process.exitCode = exit; }
+function bound(value, max) { return value.length <= max ? value : `${value.slice(0, Math.max(0, max))}\n[truncated ${value.length - Math.max(0, max)} chars]`; }
+function fileOpt(value) { if (!value)
+    return undefined; const abs = path.resolve(process.cwd(), value); const cwd = path.resolve(process.cwd()); return abs.toLowerCase().startsWith(`${cwd.toLowerCase()}${path.sep.toLowerCase()}`) ? path.relative(cwd, abs).replace(/\\/g, "/") : value.replace(/\\/g, "/").replace(/^\.\//, ""); }
+function visibility(value) { if (!value)
+    return undefined; if (value === "local" || value === "shared" || value === "global")
+    return value; throw new Error("visibility must be local, shared, or global"); }
+function profileOf(value, full) { if (full)
+    return "full"; if (!value)
+    return "ultra"; if (value === "ultra" || value === "focused" || value === "full")
+    return value; throw new Error("profile must be ultra, focused, or full"); }
+function mode(value, history) { if (history)
+    return "history"; if (!value)
+    return "current"; if (value === "current" || value === "history")
+    return value; throw new Error("mode must be current or history"); }
+function recallSource(value) { if (!value)
+    return undefined; if (value === "session" || value === "memory" || value === "both")
+    return value; throw new Error("source must be session, memory, or both"); }
+function kind(value) { return value?.trim() || "note"; }
+function role(value) { if (!value)
+    return undefined; if (value === "assistant" || value === "user" || value === "system" || value === "tool" || value === "unknown")
+    return value; throw new Error("role must be assistant, user, system, tool, or unknown"); }
+function parseLayout(value) { if (!value)
+    return "auto"; if (value === "standalone" || value === "axiom" || value === "auto")
+    return value; throw new Error("layout must be standalone, axiom, or auto"); }
+function limit(value) { if (!value)
+    return undefined; const n = Number.parseInt(value, 10); if (!Number.isInteger(n) || n < 1)
+    throw new Error("--limit must be a positive integer"); return n; }
+function intOpt(args, name) { return limit(opt(args, name)); }
+function nonNegOpt(args, name) { const value = opt(args, name); if (!value)
+    return undefined; const n = Number.parseInt(value, 10); if (!Number.isInteger(n) || n < 0)
+    throw new Error(`${name} must be a non-negative integer`); return n; }
+function req(value, name) { if (!value)
+    throw new Error(`Missing required ${name}`); return value; }
+function opt(args, name) { const i = args.indexOf(name); return i === -1 ? undefined : args[i + 1]; }
+function opts(args, name) { const values = []; for (let i = 0; i < args.length; i++)
+    if (args[i] === name && args[i + 1])
+        values.push(args[i + 1]); return values; }
+function uniq(values) { return [...new Set(values.map((v) => v?.trim()).filter((v) => !!v))]; }
+function beforeSep(args) { const i = args.indexOf("--"); return i === -1 ? args : args.slice(0, i); }
+function afterSep(args) { const i = args.indexOf("--"); return i === -1 ? [] : args.slice(i + 1); }
+function pos(args) { const withValue = new Set(["--task", "--title", "--query", "--tag", "--project", "--project-id", "--visibility", "--agent", "--memory-home", "--path", "--limit", "--profile", "--mode", "--invalidated", "--invalidate", "--reason", "--because", "--next-hypothesis", "--resume-command", "--file", "--summary", "--decision", "--append-decision", "--next-action", "--append-next-action", "--next", "--semantic-ref", "--evidence", "--session", "--kind", "--text", "--command", "--status", "--event", "--role", "--cwd", "--max-output-chars", "--system-prompt", "--token-budget", "--recent-events", "--active-cards", "--max-cache-bytes", "--max-changed-lines", "--since-hours", "--layout"]); const result = []; for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "--")
+        break;
+    if (withValue.has(a)) {
+        i++;
+        continue;
+    }
+    if (!a.startsWith("--"))
+        result.push(a);
+} return result; }
