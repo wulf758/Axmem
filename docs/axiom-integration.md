@@ -5,7 +5,7 @@ Axiom can keep `axiom memory ...` as a facade over the standalone AXMEM package.
 Recommended adapter shape:
 
 ```ts
-import { setAxmemContextProvider } from "axmem"
+import { setAxmemContextProvider } from "@wulf758/axmem"
 import { readContext, readContextHistory, readSessionLog } from "./agent/context"
 
 setAxmemContextProvider({ readContext, readContextHistory, readSessionLog })

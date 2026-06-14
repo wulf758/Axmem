@@ -13,7 +13,7 @@ function readPackageVersion(): string {
     } catch {
         // Keep --version usable even from unusual embedded builds.
     }
-    return "0.1.0-beta.4"
+    return "0.1.0-beta.5"
 }
 main(process.argv.slice(2))
 

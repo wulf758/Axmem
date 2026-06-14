@@ -70,14 +70,14 @@ The pack schema currently keeps the historical `axiom.agent_memory_*` names for 
 Install the current public beta directly from GitHub:
 
 ```bash
-npm install -g https://github.com/wulf758/Axmem/archive/refs/tags/v0.1.0-beta.4.tar.gz
+npm install -g https://github.com/wulf758/Axmem/archive/refs/tags/v0.1.0-beta.5.tar.gz
 axmem --help
 ```
 
 After the npm package is published, the shorter install is:
 
 ```bash
-npm install -g axmem
+npm install -g @wulf758/axmem
 axmem --help
 ```
 
@@ -193,13 +193,13 @@ import {
   buildMemoryWorkingWindow,
   setAxmemContextProvider,
   validateMemoryPack
-} from "axmem"
+} from "@wulf758/axmem"
 ```
 
 Example:
 
 ```ts
-import { ingestMemoryPack, recallMemory } from "axmem"
+import { ingestMemoryPack, recallMemory } from "@wulf758/axmem"
 
 ingestMemoryPack({
   cwd: process.cwd(),
@@ -225,7 +225,7 @@ console.log(result.results[0]?.title)
 Integrations can provide project context, history, and session logs with:
 
 ```ts
-import { setAxmemContextProvider } from "axmem"
+import { setAxmemContextProvider } from "@wulf758/axmem"
 
 setAxmemContextProvider({
   readContext: (cwd) => undefined,
