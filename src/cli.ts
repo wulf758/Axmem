@@ -4,7 +4,17 @@ import * as path from "node:path"
 import { spawnSync } from "node:child_process"
 import { appendSessionMemory, attachMemoryProject, buildMemorySearchStore, buildMemoryWorkingWindow, captureMemoryPack, compareMemorySearchStore, deleteMemory, flushMemoryWorkingWindow, guardMemoryHandoff, ingestMemoryPack, listSessionMemory, publishMemoryProject, readGlobalMemoryRegistry, readMemoryIndex, recallGlobalMemory, recallMemory, recallSessionMemory, reindexMemory, renderGlobalMemoryRecall, renderMemoryCapture, renderMemoryDelete, renderMemoryHandoffGuard, renderMemoryIndex, renderMemoryIngest, renderMemoryProjectPublish, renderMemoryProjects, renderMemoryRecall, renderMemoryReindex, renderMemoryUpdate, renderSessionMemoryAppend, renderSessionMemoryList, renderSessionMemoryRecall, runAxmemRecallTool, setAxmemStorageLayout, updateMemoryPack, type AgentMemoryProjectVisibility, type AxmemStorageLayout, type MemoryIngestDocument, type MemoryInvalidatedHypothesis, type MemoryRecallProfile, type MemorySearchStoreCompareCase, type MemorySemanticRef, type SessionMemoryEventKind, type SessionMemoryRecentMessage } from "./memory"
 
-const VERSION = "0.1.0-beta.0"
+const VERSION = readPackageVersion()
+
+function readPackageVersion(): string {
+    try {
+        const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8")) as { version?: unknown }
+        if (typeof packageJson.version === "string" && packageJson.version.length > 0) return packageJson.version
+    } catch {
+        // Keep --version usable even from unusual embedded builds.
+    }
+    return "0.1.0-beta.3"
+}
 main(process.argv.slice(2))
 
 function main(rawArgs: string[]): void {

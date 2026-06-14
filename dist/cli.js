@@ -38,7 +38,18 @@ const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
 const memory_1 = require("./memory");
-const VERSION = "0.1.0-beta.0";
+const VERSION = readPackageVersion();
+function readPackageVersion() {
+    try {
+        const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"));
+        if (typeof packageJson.version === "string" && packageJson.version.length > 0)
+            return packageJson.version;
+    }
+    catch {
+        // Keep --version usable even from unusual embedded builds.
+    }
+    return "0.1.0-beta.3";
+}
 main(process.argv.slice(2));
 function main(rawArgs) {
     try {
