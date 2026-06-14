@@ -1,6 +1,6 @@
 {
   "name": "axmem",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "private": false,
   "description": "Local-first compressed memory packs and deterministic recall for heterogeneous AI agents.",
   "license": "MIT",
@@ -10,18 +10,6 @@
   "bin": {
     "axmem": "./dist/cli.js"
   },
-  "files": [
-    "dist/*.js",
-    "dist/*.d.ts",
-    "README.md",
-    "LICENSE",
-    "CLAUDE.md",
-    "docs",
-    "examples",
-    "scripts",
-    ".codex",
-    ".claude"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/agent-memory-*.test.js\"",
@@ -55,5 +43,16 @@
     "typescript",
     "llm",
     "handoff"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CLAUDE.md",
+    "docs",
+    "examples",
+    "scripts",
+    ".codex",
+    ".claude"
   ]
 }
