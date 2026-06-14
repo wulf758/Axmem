@@ -1,0 +1,21 @@
+{
+  "task": {
+    "id": "synthetic-agent-handoff",
+    "title": "Synthetic agent handoff",
+    "tags": ["example", "handoff"]
+  },
+  "summary": {
+    "goal": "Demonstrate AXMEM ingest without private data",
+    "recent_message": "This is a synthetic public example card.",
+    "resume_prompt": "Recall this card before editing the demo integration."
+  },
+  "decisions": [
+    "Examples in the public repository must not contain real user memory."
+  ],
+  "next_actions": [
+    "Run axmem ingest --file examples/synthetic-handoff.json"
+  ],
+  "semantic_refs": [
+    { "kind": "file", "name": "examples/synthetic-handoff.json" }
+  ]
+}
