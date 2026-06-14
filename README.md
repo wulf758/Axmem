@@ -70,7 +70,7 @@ The pack schema currently keeps the historical `axiom.agent_memory_*` names for 
 Install the current public beta directly from GitHub:
 
 ```bash
-npm install -g github:wulf758/Axmem
+npm install -g https://github.com/wulf758/Axmem/archive/refs/tags/v0.1.0-beta.4.tar.gz
 axmem --help
 ```
 
