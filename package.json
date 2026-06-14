@@ -11,18 +11,50 @@
     "axmem": "./dist/cli.js"
   },
   "files": [
-    "dist",
+    "dist/*.js",
+    "dist/*.d.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CLAUDE.md",
+    "docs",
+    "examples",
+    "scripts",
+    ".codex",
+    ".claude"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/agent-memory-*.test.js\"",
     "install:codex-skill": "powershell -ExecutionPolicy Bypass -File scripts/install_codex_skill.ps1",
-    "verify:agent-assets": "powershell -ExecutionPolicy Bypass -File scripts/verify_agent_assets.ps1"
+    "verify:agent-assets": "powershell -ExecutionPolicy Bypass -File scripts/verify_agent_assets.ps1",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
     "typescript": "^5.8.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wulf758/Axmem.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wulf758/Axmem/issues"
+  },
+  "homepage": "https://github.com/wulf758/Axmem#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "ai",
+    "agent-memory",
+    "memory",
+    "local-first",
+    "cli",
+    "typescript",
+    "llm",
+    "handoff"
+  ]
 }

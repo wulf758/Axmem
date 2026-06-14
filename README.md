@@ -65,18 +65,30 @@ The current repo includes:
 
 The pack schema currently keeps the historical `axiom.agent_memory_*` names for compatibility. That is intentional.
 
-## Install from source
+## Install
+
+Install the current public beta directly from GitHub:
 
 ```bash
+npm install -g github:wulf758/Axmem
+axmem --help
+```
+
+After the npm package is published, the shorter install is:
+
+```bash
+npm install -g axmem
+axmem --help
+```
+
+For source development:
+
+```bash
+git clone https://github.com/wulf758/Axmem.git
+cd Axmem
 npm install
 npm run build
 node dist/cli.js --help
-```
-
-After package installation, the CLI binary is named `axmem`:
-
-```bash
-axmem --help
 ```
 
 During local development, use:
@@ -90,7 +102,7 @@ node dist/cli.js <command>
 Create a quick handoff card:
 
 ```bash
-node dist/cli.js ingest --quick \
+axmem ingest --quick \
   --task parser-handoff \
   --summary "The parser migration is blocked on source-map tests" \
   --tag handoff
@@ -99,13 +111,13 @@ node dist/cli.js ingest --quick \
 Recall it later:
 
 ```bash
-node dist/cli.js recall --query "parser migration source-map" --profile ultra
+axmem recall --query "parser migration source-map" --profile ultra
 ```
 
 Ask for a richer explanation of why cards ranked where they did:
 
 ```bash
-node dist/cli.js recall \
+axmem recall \
   --query "parser migration source-map" \
   --profile focused \
   --explain-score
@@ -114,14 +126,14 @@ node dist/cli.js recall \
 Write a lightweight end-of-session handoff:
 
 ```bash
-node dist/cli.js handoff \
+axmem handoff \
   --summary "Recall parser-handoff before touching parser code"
 ```
 
 For compatibility with agents trained on Axiom, this also works:
 
 ```bash
-node dist/cli.js memory recall --query "parser migration"
+axmem memory recall --query "parser migration"
 ```
 
 ## Storage layout
@@ -141,9 +153,9 @@ Legacy Axiom memory lives under:
 Use `--layout` to choose the active store:
 
 ```bash
-node dist/cli.js recall --layout standalone --query "..."
-node dist/cli.js recall --layout axiom --query "..."
-node dist/cli.js recall --layout auto --query "..."
+axmem recall --layout standalone --query "..."
+axmem recall --layout axiom --query "..."
+axmem recall --layout auto --query "..."
 ```
 
 `auto` prefers an existing `.axmem/memory` store, then an existing `.axiom/memory` store, and creates new standalone stores under `.axmem/memory`.
@@ -151,24 +163,24 @@ node dist/cli.js recall --layout auto --query "..."
 To copy a legacy Axiom store into the standalone layout:
 
 ```bash
-node dist/cli.js migrate --from-axiom --json
+axmem migrate --from-axiom --json
 ```
 
 ## Core commands
 
 ```bash
-node dist/cli.js ingest --quick --summary "..." --task task-id
-node dist/cli.js handoff --summary "..."
-node dist/cli.js update --task task-id --append-decision "..."
-node dist/cli.js recall --query "..." --profile ultra
-node dist/cli.js recall --task task-id --profile full --include-evidence
-node dist/cli.js delete --task task-id --dry-run
-node dist/cli.js reindex
-node dist/cli.js search-store build
-node dist/cli.js session append --kind note --summary "..." --text "..."
-node dist/cli.js session recall --query "..."
-node dist/cli.js window --query "..." --token-budget 50000
-node dist/cli.js migrate --from-axiom
+axmem ingest --quick --summary "..." --task task-id
+axmem handoff --summary "..."
+axmem update --task task-id --append-decision "..."
+axmem recall --query "..." --profile ultra
+axmem recall --task task-id --profile full --include-evidence
+axmem delete --task task-id --dry-run
+axmem reindex
+axmem search-store build
+axmem session append --kind note --summary "..." --text "..."
+axmem session recall --query "..."
+axmem window --query "..." --token-budget 50000
+axmem migrate --from-axiom
 ```
 
 ## Library API
